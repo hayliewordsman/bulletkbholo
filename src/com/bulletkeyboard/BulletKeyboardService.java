@@ -128,7 +128,9 @@ public class BulletKeyboardService extends InputMethodService
     }
 
     private void postPredictions() {
-        if (keyboardView != null) keyboardView.setPredictions(predEngine.getSuggestions());
+        if (keyboardView == null) return;
+        keyboardView.setPredictions(predEngine.getSuggestions());
+        keyboardView.setCurrentWordLength(predEngine.getCurrentWord().length());
     }
 
     private void dropShiftOnce() {

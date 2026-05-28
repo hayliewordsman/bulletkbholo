@@ -29,10 +29,10 @@ public class BulletKeyboardView extends View {
     public static final int KEYCODE_SPACE   = 32;
 
     // ── Layout constants ──────────────────────────────────────────────────────
-    private static final float CORNER_DP        = 5f;
-    private static final float GAP_DP           = 3f;
-    private static final float PRED_HEIGHT_DP   = 44f;
-    private static final float SHADOW_DP        = 2f;
+    private static final float CORNER_DP   = 5f;
+    private static final float GAP_DP      = 3f;
+    private static final float SHADOW_DP   = 2f;
+    private static final float SWIPE_UP_DP = 10f;  // min upward delta to accept suggestion
 
     // ── QWERTY data ───────────────────────────────────────────────────────────
     private static final char[] ROW1 = {'q','w','e','r','t','y','u','i','o','p'};
@@ -46,8 +46,6 @@ public class BulletKeyboardView extends View {
     private static final String[] SYM2_L = {"@","#","$","%","^","&","*","(",")"};
     private static final int[]    SYM2_C = {'@','#','$','%','^','&','*','(',')'};
 
-    // Row 3 in symbols: first key is wider (shift slot), last key fills period slot
-    // 9 symbols: index 0 = wide "shift" slot, 1-7 = letter slots, 8 = "period" slot
     private static final String[] SYM3_L = {"!", "?", "'", "\"", "/", ";", ":", "\\", "."};
     private static final int[]    SYM3_C = {'!', '?', '\'', '"', '/', ';', ':', '\\', '.'};
 
@@ -55,24 +53,28 @@ public class BulletKeyboardView extends View {
     private boolean isShifted     = false;
     private boolean isSymbolsMode = false;
     private int     pressedIndex  = -1;
+    private float   touchDownY    = 0f;
+    private int     touchDownKey  = -1;
 
-    private Key[] keys;
-    private String[] predictions = {"","",""};
+    private Key[]    keys;
+    private String[] predictions      = {"","",""};
+    private int      currentWordLength = 0;
+    private int[]    predKeyIndices    = {-1, -1, -1};
 
     private KeyboardActionListener listener;
 
     // ── Theme ─────────────────────────────────────────────────────────────────
     private int colKey, colKeyPressed, colSpecial, colKeyText;
-    private int colPredBg, colKbBg;
+    private int colKbBg;
 
     // ── Paints ────────────────────────────────────────────────────────────────
     private Paint pKey, pSpecial, pPressed, pKeyText, pSmallText;
-    private Paint pKbBg, pPredBg, pPredText, pPredChip, pSeparator, pShadow;
+    private Paint pKbBg, pPredText, pPredChip, pShadow;
 
     // ── Dimensions ────────────────────────────────────────────────────────────
     private float density;
-    private float gap, corner, predH, shadowH;
-    private int   keyHeight;   // pixels
+    private float gap, corner, shadowH;
+    private int   keyHeight;
 
     // ── Key data class ────────────────────────────────────────────────────────
     static class Key {
@@ -94,11 +96,10 @@ public class BulletKeyboardView extends View {
     }
 
     private void init(Context context) {
-        density  = context.getResources().getDisplayMetrics().density;
-        gap      = GAP_DP    * density;
-        corner   = CORNER_DP * density;
-        predH    = PRED_HEIGHT_DP * density;
-        shadowH  = SHADOW_DP * density;
+        density = context.getResources().getDisplayMetrics().density;
+        gap     = GAP_DP    * density;
+        corner  = CORNER_DP * density;
+        shadowH = SHADOW_DP * density;
 
         SharedPreferences prefs = PreferenceManager.getDefaultSharedPreferences(context);
         int heightDp = prefs.getInt("key_height", 55);
@@ -115,40 +116,31 @@ public class BulletKeyboardView extends View {
             colKeyPressed = 0xFF5D4037;
             colSpecial    = 0xFF2A1A17;
             colKeyText    = 0xFFEFEBE9;
-            colPredBg     = 0xFF4E342E;
             colKbBg       = 0xFF1C0F0C;
         } else if ("burgundy".equals(theme)) {
             colKey        = 0xFF4A0010;
             colKeyPressed = 0xFF7B0026;
             colSpecial    = 0xFF30000A;
             colKeyText    = 0xFFFCE4EC;
-            colPredBg     = 0xFF5D0018;
             colKbBg       = 0xFF1E0008;
         } else if ("gray".equals(theme)) {
             colKey        = 0xFF424242;
             colKeyPressed = 0xFF616161;
             colSpecial    = 0xFF2C2C2C;
             colKeyText    = 0xFFF5F5F5;
-            colPredBg     = 0xFF4A4A4A;
             colKbBg       = 0xFF1E1E1E;
         } else { // black (default)
             colKey        = 0xFF212121;
             colKeyPressed = 0xFF424242;
             colSpecial    = 0xFF171717;
             colKeyText    = 0xFFFFFFFF;
-            colPredBg     = 0xFF2C2C2C;
             colKbBg       = 0xFF141414;
         }
     }
 
     private void buildPaints() {
-        pKbBg = new Paint();
-        pKbBg.setColor(colKbBg);
-
-        pPredBg = new Paint(Paint.ANTI_ALIAS_FLAG);
-        pPredBg.setColor(colPredBg);
-
-        pKey = makeFillPaint(colKey);
+        pKbBg    = makeFillPaint(colKbBg);
+        pKey     = makeFillPaint(colKey);
         pSpecial = makeFillPaint(colSpecial);
         pPressed = makeFillPaint(colKeyPressed);
 
@@ -156,19 +148,13 @@ public class BulletKeyboardView extends View {
         pShadow.setColor(0x44000000);
         pShadow.setStyle(Paint.Style.FILL);
 
-        pKeyText = makeTextPaint(colKeyText, 0f, true);
-
+        pKeyText   = makeTextPaint(colKeyText, 0f, true);
         pSmallText = makeTextPaint(colKeyText, 0f, false);
-
-        pPredText = makeTextPaint(colKeyText, 0f, false);
+        pPredText  = makeTextPaint(colKeyText, 0f, false);
 
         pPredChip = new Paint(Paint.ANTI_ALIAS_FLAG);
-        pPredChip.setColor(0x33FFFFFF);
+        pPredChip.setColor(0x55FFFFFF);
         pPredChip.setStyle(Paint.Style.FILL);
-
-        pSeparator = new Paint();
-        pSeparator.setColor(0x22FFFFFF);
-        pSeparator.setStrokeWidth(1f);
     }
 
     private Paint makeFillPaint(int color) {
@@ -192,12 +178,11 @@ public class BulletKeyboardView extends View {
     protected void onMeasure(int widthSpec, int heightSpec) {
         int w = MeasureSpec.getSize(widthSpec);
         if (w == 0) w = getResources().getDisplayMetrics().widthPixels;
-        int h = totalHeight();
-        setMeasuredDimension(resolveSize(w, widthSpec), h);
+        setMeasuredDimension(resolveSize(w, widthSpec), totalHeight());
     }
 
     private int totalHeight() {
-        return (int)(predH) + 4 * keyHeight + 5 * (int)gap;
+        return 4 * keyHeight + 5 * (int)gap;
     }
 
     @Override
@@ -216,100 +201,81 @@ public class BulletKeyboardView extends View {
         }
         keys = (Key[]) list.toArray(new Key[list.size()]);
 
-        // Scale text sizes based on actual key dimensions
         float ts = keyHeight * 0.38f;
         pKeyText.setTextSize(ts);
         pSmallText.setTextSize(ts * 0.75f);
-        pPredText.setTextSize(predH * 0.38f);
+        pPredText.setTextSize(keyHeight * 0.25f);
     }
 
     private void buildQwertyLayout(java.util.ArrayList<Key> L, int W) {
-        float y = predH;
-
-        // ── Row 1: QWERTYUIOP (10 equal keys) ─────────────────────────────
-        y += gap;
+        // Row 1: QWERTYUIOP
+        float y   = gap;
         float kw1 = (W - 11f * gap) / 10f;
         for (int i = 0; i < ROW1.length; i++) {
             Key k = new Key();
             k.x = gap + i * (kw1 + gap);
-            k.y = y;
-            k.w = kw1;
-            k.h = keyHeight;
+            k.y = y; k.w = kw1; k.h = keyHeight;
             k.label = String.valueOf(ROW1[i]).toUpperCase();
-            k.code = ROW1[i];
+            k.code  = ROW1[i];
             L.add(k);
         }
 
-        // ── Row 2: ASDFGHJKL + backspace ──────────────────────────────────
-        // 9 letter keys (kw2) + backspace (1.5*kw2), all from left gap to right gap:
-        //   gap + 9*(kw2+gap) + bsW = W - gap  =>  10.5*kw2 = W - 11*gap
+        // Row 2: ASDFGHJKL + DEL
         y += keyHeight + gap;
         float kw2 = (W - 11f * gap) / 10.5f;
         float bsW = 1.5f * kw2;
         for (int i = 0; i < ROW2.length; i++) {
             Key k = new Key();
             k.x = gap + i * (kw2 + gap);
-            k.y = y;
-            k.w = kw2;
-            k.h = keyHeight;
+            k.y = y; k.w = kw2; k.h = keyHeight;
             k.label = String.valueOf(ROW2[i]).toUpperCase();
-            k.code = ROW2[i];
+            k.code  = ROW2[i];
             L.add(k);
         }
-        // Backspace
         addSpecialKey(L, gap + ROW2.length * (kw2 + gap), y, bsW, keyHeight, "DEL", KEYCODE_DELETE);
 
-        // ── Row 3: Shift + ZXCVBNM + period ───────────────────────────────
+        // Row 3: Shift(1.5x) + ZXCVBNM + period(1x)
         y += keyHeight + gap;
-        // shift=1.5u, 7 letters=7u, period=1u → 9.5u + 10 gaps = W
-        float u3 = (W - 10f * gap) / 9.5f;
+        float u3     = (W - 10f * gap) / 9.5f;
         float shiftW = 1.5f * u3;
-        float lx3 = gap + shiftW + gap;
-
+        float lx3    = gap + shiftW + gap;
         addSpecialKey(L, gap, y, shiftW, keyHeight, "⇧", KEYCODE_SHIFT);
         for (int i = 0; i < ROW3.length; i++) {
             Key k = new Key();
             k.x = lx3 + i * (u3 + gap);
-            k.y = y;
-            k.w = u3;
-            k.h = keyHeight;
+            k.y = y; k.w = u3; k.h = keyHeight;
             k.label = String.valueOf(ROW3[i]).toUpperCase();
-            k.code = ROW3[i];
+            k.code  = ROW3[i];
             L.add(k);
         }
-        // Period key (normal 1x width)
         float dotX = lx3 + ROW3.length * (u3 + gap);
-        Key dotKey = new Key();
-        dotKey.x = dotX; dotKey.y = y; dotKey.w = u3; dotKey.h = keyHeight;
-        dotKey.label = "."; dotKey.code = '.';
-        L.add(dotKey);
+        Key dot = new Key();
+        dot.x = dotX; dot.y = y; dot.w = u3; dot.h = keyHeight;
+        dot.label = "."; dot.code = '.';
+        L.add(dot);
 
-        // ── Row 4: ?123  IME  SPACE  ENTER ────────────────────────────────
+        // Row 4: ?123  IME  SPACE  enter
         y += keyHeight + gap;
         float toggleW = kw1 * 1.8f;
         float switchW = kw1 * 1.2f;
         float enterW  = kw1 * 1.8f;
-        // gap + toggleW + gap + switchW + gap + spaceW + gap + enterW + gap = W
         float spaceW  = W - 5f * gap - toggleW - switchW - enterW;
-
         float x4 = gap;
         addSpecialKey(L, x4, y, toggleW, keyHeight, "?123", KEYCODE_SYMBOLS);
         x4 += toggleW + gap;
-        addSpecialKey(L, x4, y, switchW, keyHeight, "IME", KEYCODE_SWITCH);
+        addSpecialKey(L, x4, y, switchW, keyHeight, "IME",  KEYCODE_SWITCH);
         x4 += switchW + gap;
-        Key spaceKey = new Key();
-        spaceKey.x = x4; spaceKey.y = y; spaceKey.w = spaceW; spaceKey.h = keyHeight;
-        spaceKey.label = ""; spaceKey.code = KEYCODE_SPACE;
-        L.add(spaceKey);
+        Key spKey = new Key();
+        spKey.x = x4; spKey.y = y; spKey.w = spaceW; spKey.h = keyHeight;
+        spKey.label = ""; spKey.code = KEYCODE_SPACE;
+        L.add(spKey);
         x4 += spaceW + gap;
         addSpecialKey(L, x4, y, W - x4 - gap, keyHeight, "↵", KEYCODE_DONE);
     }
 
     private void buildSymbolsLayout(java.util.ArrayList<Key> L, int W) {
-        float y = predH;
-
-        // ── Row 1: 1 2 3 4 5 6 7 8 9 0 (10 equal keys) ────────────────────
-        y += gap;
+        // Row 1: 1234567890
+        float y   = gap;
         float kw1 = (W - 11f * gap) / 10f;
         for (int i = 0; i < SYM1_L.length; i++) {
             Key k = new Key();
@@ -319,8 +285,7 @@ public class BulletKeyboardView extends View {
             L.add(k);
         }
 
-        // ── Row 2: @ # $ % ^ & * ( )  + backspace ─────────────────────────
-        // Same math as QWERTY row 2: 9*(kw2s) + 1.5*(kw2s) = W - 11*gap
+        // Row 2: @#$%^&*() + DEL
         y += keyHeight + gap;
         float kw2s = (W - 11f * gap) / 10.5f;
         float bsWs = 1.5f * kw2s;
@@ -333,19 +298,15 @@ public class BulletKeyboardView extends View {
         }
         addSpecialKey(L, gap + SYM2_L.length * (kw2s + gap), y, bsWs, keyHeight, "DEL", KEYCODE_DELETE);
 
-        // ── Row 3: ! ? ' " / ; : \ .  (same slots as QWERTY row 3) ────────
+        // Row 3: same geometry as QWERTY row 3
         y += keyHeight + gap;
-        // shift slot=1.5u, 7 middle=7u, period slot=1u → 9.5u + 10 gaps = W
-        float u3s    = (W - 10f * gap) / 9.5f;
-        float shiftWs= 1.5f * u3s;
-        float lx3s   = gap + shiftWs + gap;
-
-        // First sym in shift slot (wider)
+        float u3s     = (W - 10f * gap) / 9.5f;
+        float shiftWs = 1.5f * u3s;
+        float lx3s    = gap + shiftWs + gap;
         Key f = new Key();
         f.x = gap; f.y = y; f.w = shiftWs; f.h = keyHeight;
         f.label = SYM3_L[0]; f.code = SYM3_C[0];
         L.add(f);
-
         for (int i = 1; i < SYM3_L.length - 1; i++) {
             Key k = new Key();
             k.x = lx3s + (i - 1) * (u3s + gap);
@@ -353,39 +314,66 @@ public class BulletKeyboardView extends View {
             k.label = SYM3_L[i]; k.code = SYM3_C[i];
             L.add(k);
         }
-        // Last sym in period slot (normal 1x width)
         float lastX = lx3s + (SYM3_L.length - 2) * (u3s + gap);
         Key last = new Key();
         last.x = lastX; last.y = y; last.w = u3s; last.h = keyHeight;
         last.label = SYM3_L[SYM3_L.length - 1]; last.code = SYM3_C[SYM3_C.length - 1];
         L.add(last);
 
-        // ── Row 4: ABC  IME  SPACE  ENTER ─────────────────────────────────
+        // Row 4: ABC  IME  SPACE  enter
         y += keyHeight + gap;
         float kw4     = (W - 11f * gap) / 10f;
         float toggleW = kw4 * 1.8f;
         float switchW = kw4 * 1.2f;
         float enterW  = kw4 * 1.8f;
         float spaceW  = W - 5f * gap - toggleW - switchW - enterW;
-
         float x4 = gap;
         addSpecialKey(L, x4, y, toggleW, keyHeight, "ABC", KEYCODE_SYMBOLS);
         x4 += toggleW + gap;
         addSpecialKey(L, x4, y, switchW, keyHeight, "IME", KEYCODE_SWITCH);
         x4 += switchW + gap;
-        Key sp = new Key();
-        sp.x = x4; sp.y = y; sp.w = spaceW; sp.h = keyHeight;
-        sp.label = ""; sp.code = KEYCODE_SPACE;
-        L.add(sp);
+        Key spKey = new Key();
+        spKey.x = x4; spKey.y = y; spKey.w = spaceW; spKey.h = keyHeight;
+        spKey.label = ""; spKey.code = KEYCODE_SPACE;
+        L.add(spKey);
         x4 += spaceW + gap;
         addSpecialKey(L, x4, y, W - x4 - gap, keyHeight, "↵", KEYCODE_DONE);
     }
 
-    private void addSpecialKey(java.util.ArrayList<Key> L, float x, float y, float w, float h, String label, int code) {
+    private void addSpecialKey(java.util.ArrayList<Key> L,
+            float x, float y, float w, float h, String label, int code) {
         Key k = new Key();
         k.x = x; k.y = y; k.w = w; k.h = h;
         k.label = label; k.code = code; k.isSpecial = true;
         L.add(k);
+    }
+
+    // ── Prediction key mapping ────────────────────────────────────────────────────
+    // Resolves which keyboard key each prediction chip should float above,
+    // based on the next character of each suggestion beyond the typed prefix.
+    private void computePredKeyIndices() {
+        predKeyIndices[0] = predKeyIndices[1] = predKeyIndices[2] = -1;
+        if (isSymbolsMode || keys == null) return;
+        for (int i = 0; i < 3; i++) {
+            String pred = (i < predictions.length) ? predictions[i] : "";
+            if (pred == null || pred.length() <= currentWordLength) continue;
+            char next = Character.toLowerCase(pred.charAt(currentWordLength));
+            int keyIdx = findLetterKey(next);
+            if (keyIdx < 0) continue;
+            boolean taken = false;
+            for (int j = 0; j < i; j++) {
+                if (predKeyIndices[j] == keyIdx) { taken = true; break; }
+            }
+            if (!taken) predKeyIndices[i] = keyIdx;
+        }
+    }
+
+    private int findLetterKey(char c) {
+        if (keys == null) return -1;
+        for (int i = 0; i < keys.length; i++) {
+            if (keys[i].code == c) return i;
+        }
+        return -1;
     }
 
     // ── Drawing ───────────────────────────────────────────────────────────────
@@ -393,40 +381,31 @@ public class BulletKeyboardView extends View {
     protected void onDraw(Canvas canvas) {
         if (keys == null) return;
 
-        int W = getWidth();
+        computePredKeyIndices();
 
-        // Keyboard background
+        int W = getWidth();
         canvas.drawRect(0, 0, W, getHeight(), pKbBg);
 
-        // Prediction area background
-        canvas.drawRect(0, 0, W, predH, pPredBg);
-
-        // Draw prediction chips aligned over Q(0), W(1), E(2) key positions
-        drawPredictions(canvas);
-
-        // Separator line
-        canvas.drawLine(0, predH, W, predH, pSeparator);
-
-        // Keys
         RectF r = new RectF();
         for (int i = 0; i < keys.length; i++) {
             Key k = keys[i];
             r.set(k.x, k.y, k.x + k.w, k.y + k.h);
 
-            // Key shadow
-            RectF shadow = new RectF(r.left + shadowH, r.top + shadowH, r.right + shadowH, r.bottom + shadowH);
-            canvas.drawRoundRect(shadow, corner, corner, pShadow);
+            // Shadow
+            canvas.drawRoundRect(
+                new RectF(r.left + shadowH, r.top + shadowH,
+                          r.right + shadowH, r.bottom + shadowH),
+                corner, corner, pShadow);
 
-            // Key face
+            // Face
             Paint face;
             if (i == pressedIndex) {
                 face = pPressed;
             } else if (k.isSpecial) {
-                // Shift key glows when active
                 if (k.code == KEYCODE_SHIFT && isShifted) {
-                    Paint sp = new Paint(pPressed);
-                    sp.setColor(blendColor(colSpecial, 0xFF6699FF, 0.55f));
-                    face = sp;
+                    Paint glow = new Paint(pPressed);
+                    glow.setColor(blendColor(colSpecial, 0xFF6699FF, 0.55f));
+                    face = glow;
                 } else {
                     face = pSpecial;
                 }
@@ -435,7 +414,7 @@ public class BulletKeyboardView extends View {
             }
             canvas.drawRoundRect(r, corner, corner, face);
 
-            // Key label
+            // Label — shift down when a prediction chip overlays this key
             if (k.label.length() > 0) {
                 String lbl = k.label;
                 if (!k.isSpecial && isShifted && !isSymbolsMode) {
@@ -443,36 +422,44 @@ public class BulletKeyboardView extends View {
                 }
                 Paint tp = k.isSpecial ? pSmallText : pKeyText;
                 float tx = k.x + k.w / 2f;
-                float ty = k.y + k.h / 2f + tp.getTextSize() * 0.36f;
+                boolean hasChip = false;
+                for (int pi = 0; pi < 3; pi++) {
+                    if (predKeyIndices[pi] == i) { hasChip = true; break; }
+                }
+                float ty = hasChip
+                    ? k.y + k.h * 0.72f + tp.getTextSize() * 0.36f
+                    : k.y + k.h / 2f   + tp.getTextSize() * 0.36f;
                 canvas.drawText(lbl, tx, ty, tp);
             }
         }
+
+        // Prediction chips rendered on top of their respective key faces
+        drawPredictions(canvas);
     }
 
     private void drawPredictions(Canvas canvas) {
-        if (keys == null || keys.length < 3) return;
+        if (keys == null || isSymbolsMode) return;
 
-        float chipMargin = 4 * density;
-        float chipTop    = chipMargin;
-        float chipBottom = predH - chipMargin;
+        float m = 2f * density;
 
         for (int i = 0; i < 3; i++) {
+            if (predKeyIndices[i] < 0) continue;
             String pred = (i < predictions.length) ? predictions[i] : "";
             if (pred == null || pred.length() == 0) continue;
 
-            // Align chip over key index i (Q=0, W=1, E=2)
-            Key k = keys[i];
-            float chipLeft  = k.x + 1 * density;
-            float chipRight = k.x + k.w - 1 * density;
+            Key k = keys[predKeyIndices[i]];
+            // Chip spans the top ~45% of the key face
+            RectF chip = new RectF(
+                k.x + m,
+                k.y + m,
+                k.x + k.w - m,
+                k.y + k.h * 0.46f - m);
 
-            RectF chipR = new RectF(chipLeft, chipTop, chipRight, chipBottom);
-            canvas.drawRoundRect(chipR, 5 * density, 5 * density, pPredChip);
+            canvas.drawRoundRect(chip, corner * 0.8f, corner * 0.8f, pPredChip);
 
-            float tx = chipLeft + (chipRight - chipLeft) / 2f;
-            float ty = chipTop  + (chipBottom - chipTop) / 2f + pPredText.getTextSize() * 0.36f;
-
-            // Clip text to chip width
-            String display = clipText(pred, (int)(chipRight - chipLeft - 4 * density), pPredText);
+            float tx = chip.left + chip.width()  / 2f;
+            float ty = chip.top  + chip.height() / 2f + pPredText.getTextSize() * 0.36f;
+            String display = clipText(pred, (int)(chip.width() - 4f * density), pPredText);
             canvas.drawText(display, tx, ty, pPredText);
         }
     }
@@ -495,38 +482,41 @@ public class BulletKeyboardView extends View {
         switch (action) {
             case MotionEvent.ACTION_DOWN:
             case MotionEvent.ACTION_POINTER_DOWN:
-                // Check prediction area tap
-                if (y < predH) {
-                    int pi = predictionIndexAt(x);
-                    if (pi >= 0 && pi < predictions.length) {
-                        String pred = predictions[pi];
-                        if (pred != null && pred.length() > 0 && listener != null) {
-                            listener.onPredictionSelected(pred);
-                        }
-                    }
-                    return true;
-                }
-                pressedIndex = keyAt(x, y);
+                touchDownY   = y;
+                touchDownKey = keyAt(x, y);
+                pressedIndex = touchDownKey;
                 invalidate();
                 break;
 
             case MotionEvent.ACTION_MOVE:
-                pressedIndex = keyAt(x, y);
+                // Keep original key highlighted even while finger slides upward
+                pressedIndex = touchDownKey;
                 invalidate();
                 break;
 
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_POINTER_UP:
-                int idx = keyAt(x, y);
+                computePredKeyIndices();  // ensure fresh before decision
                 pressedIndex = -1;
                 invalidate();
-                if (idx >= 0 && listener != null) {
-                    listener.onKeyPress(keys[idx].code);
+                if (touchDownKey >= 0 && listener != null) {
+                    float swipeDy = touchDownY - y;  // positive = upward motion
+                    int predIdx = -1;
+                    for (int pi = 0; pi < 3; pi++) {
+                        if (predKeyIndices[pi] == touchDownKey) { predIdx = pi; break; }
+                    }
+                    if (predIdx >= 0 && swipeDy > SWIPE_UP_DP * density) {
+                        listener.onPredictionSelected(predictions[predIdx]);
+                    } else {
+                        listener.onKeyPress(keys[touchDownKey].code);
+                    }
                 }
+                touchDownKey = -1;
                 break;
 
             case MotionEvent.ACTION_CANCEL:
                 pressedIndex = -1;
+                touchDownKey = -1;
                 invalidate();
                 break;
         }
@@ -542,18 +532,14 @@ public class BulletKeyboardView extends View {
         return -1;
     }
 
-    private int predictionIndexAt(float x) {
-        if (keys == null || keys.length < 3) return -1;
-        for (int i = 0; i < 3; i++) {
-            Key k = keys[i];
-            if (x >= k.x && x <= k.x + k.w) return i;
-        }
-        return -1;
-    }
-
     // ── Public API ────────────────────────────────────────────────────────────
     public void setPredictions(String[] preds) {
         this.predictions = preds;
+        invalidate();
+    }
+
+    public void setCurrentWordLength(int len) {
+        this.currentWordLength = len;
         invalidate();
     }
 
