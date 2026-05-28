@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="app_name">Bullet Keyboard</string>
+    <string name="settings_title">Bullet Keyboard Settings</string>
+    <string name="subtype_en_us">English (US)</string>
+    <string name="key_height_label">Key Height</string>
+    <string name="color_theme_label">Color Theme</string>
+    <string name="theme_black">Black</string>
+    <string name="theme_brown">Brown</string>
+    <string name="theme_burgundy">Burgundy</string>
+    <string name="theme_gray">Gray</string>
+    <string name="setup_title">Setup Instructions</string>
+    <string name="setup_steps">1. Go to Settings &#x2192; Language &amp; Input\n2. Under Keyboard &amp; Input Methods, tap Default\n3. Enable \'Bullet Keyboard\'\n4. Select Bullet Keyboard as your input method</string>
+    <string name="dp_suffix">dp</string>
+</resources>
