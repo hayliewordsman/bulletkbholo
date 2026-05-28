@@ -6,6 +6,7 @@ import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
+import android.view.inputmethod.InputMethodManager;
 
 public class BulletKeyboardService extends InputMethodService
         implements BulletKeyboardView.KeyboardActionListener {
@@ -53,13 +54,13 @@ public class BulletKeyboardService extends InputMethodService
             case BulletKeyboardView.KEYCODE_DELETE:
                 ic.deleteSurroundingText(1, 0);
                 predEngine.deleteChar();
-                postPreds();
+                postPredictions();
                 break;
 
             case BulletKeyboardView.KEYCODE_DONE:
-                sendEnter(ic);
+                sendEnterOrAction(ic);
                 predEngine.reset();
-                postPreds();
+                postPredictions();
                 break;
 
             case BulletKeyboardView.KEYCODE_SHIFT:
@@ -70,35 +71,41 @@ public class BulletKeyboardService extends InputMethodService
                 if (keyboardView != null) {
                     keyboardView.setSymbolsMode(!keyboardView.isSymbolsMode());
                     predEngine.reset();
-                    postPreds();
+                    postPredictions();
                 }
+                break;
+
+            case BulletKeyboardView.KEYCODE_SWITCH:
+                ((InputMethodManager) getSystemService(INPUT_METHOD_SERVICE))
+                        .showInputMethodPicker();
                 break;
 
             case BulletKeyboardView.KEYCODE_SPACE:
                 String[] cur = predEngine.getSuggestions();
                 if (cur[0] != null && cur[0].length() > 0) {
-                    replaceWord(ic, cur[0]);
+                    replaceCurrentWord(ic, cur[0]);
                     ic.commitText(" ", 1);
                 } else {
                     ic.commitText(" ", 1);
                     predEngine.reset();
-                    postPreds();
+                    postPredictions();
                 }
-                dropShift();
+                dropShiftOnce();
                 break;
 
             default:
                 char c = (char) code;
-                if (keyboardView != null && keyboardView.isShifted()) {
+                boolean shifted = keyboardView != null && keyboardView.isShifted();
+                if (shifted) {
                     c = Character.toUpperCase(c);
-                    dropShift();
+                    dropShiftOnce();
                 }
                 ic.commitText(String.valueOf(c), 1);
                 if (Character.isLetter(c) && (keyboardView == null || !keyboardView.isSymbolsMode()))
                     predEngine.addChar(c);
                 else
                     predEngine.reset();
-                postPreds();
+                postPredictions();
                 break;
         }
     }
@@ -107,28 +114,28 @@ public class BulletKeyboardService extends InputMethodService
     public void onPredictionSelected(String word) {
         InputConnection ic = getCurrentInputConnection();
         if (ic == null || word == null || word.length() == 0) return;
-        replaceWord(ic, word);
+        replaceCurrentWord(ic, word);
         ic.commitText(" ", 1);
-        dropShift();
+        dropShiftOnce();
     }
 
-    private void replaceWord(InputConnection ic, String w) {
-        String cur = predEngine.getCurrentWord();
-        if (cur.length() > 0) ic.deleteSurroundingText(cur.length(), 0);
-        ic.commitText(w, 1);
+    private void replaceCurrentWord(InputConnection ic, String replacement) {
+        String current = predEngine.getCurrentWord();
+        if (current.length() > 0) ic.deleteSurroundingText(current.length(), 0);
+        ic.commitText(replacement, 1);
         predEngine.reset();
-        postPreds();
+        postPredictions();
     }
 
-    private void postPreds() {
+    private void postPredictions() {
         if (keyboardView != null) keyboardView.setPredictions(predEngine.getSuggestions());
     }
 
-    private void dropShift() {
+    private void dropShiftOnce() {
         if (keyboardView != null && keyboardView.isShifted()) keyboardView.setShifted(false);
     }
 
-    private void sendEnter(InputConnection ic) {
+    private void sendEnterOrAction(InputConnection ic) {
         EditorInfo ei = getCurrentInputEditorInfo();
         int action = (ei != null)
                 ? (ei.imeOptions & EditorInfo.IME_MASK_ACTION)

@@ -23,6 +23,7 @@ public class BulletKeyboardView extends View {
     public static final int KEYCODE_SYMBOLS = -2;
     public static final int KEYCODE_DONE    = -4;
     public static final int KEYCODE_DELETE  = -5;
+    public static final int KEYCODE_SWITCH  = -6;
     public static final int KEYCODE_SPACE   = 32;
 
     private static final float CORNER_DP      = 5f;
@@ -38,8 +39,9 @@ public class BulletKeyboardView extends View {
     private static final int[]    SYM1_C = {'1','2','3','4','5','6','7','8','9','0'};
     private static final String[] SYM2_L = {"@","#","$","%","^","&","*","(",")"};
     private static final int[]    SYM2_C = {'@','#','$','%','^','&','*','(',')'};
-    private static final String[] SYM3_L = {"!","?","'","\"","/",";",":","\\","."};
-    private static final int[]    SYM3_C = {'!','?','\'','"','/',';',':','\\','.'};
+    // 9 symbols: index 0 = wide shift slot, 1-7 = letter slots, 8 = period slot
+    private static final String[] SYM3_L = {"!", "?", "'", "\"", "/", ";", ":", "\\", "."};
+    private static final int[]    SYM3_C = {'!', '?', '\'', '"', '/', ';', ':', '\\', '.'};
 
     private boolean isShifted     = false;
     private boolean isSymbolsMode = false;
@@ -146,8 +148,8 @@ public class BulletKeyboardView extends View {
 
     private void buildKeys(int W) {
         java.util.ArrayList<Key> list = new java.util.ArrayList<Key>();
-        if (isSymbolsMode) buildSymbols(list, W);
-        else               buildQwerty(list, W);
+        if (isSymbolsMode) buildSymbolsLayout(list, W);
+        else               buildQwertyLayout(list, W);
         keys = (Key[]) list.toArray(new Key[list.size()]);
         float ts = keyHeight * 0.38f;
         pKeyText.setTextSize(ts);
@@ -155,74 +157,95 @@ public class BulletKeyboardView extends View {
         pPredText.setTextSize(predH * 0.38f);
     }
 
-    private void buildQwerty(java.util.ArrayList<Key> L, int W) {
+    private void buildQwertyLayout(java.util.ArrayList<Key> L, int W) {
         float y = predH + gap;
         float kw1 = (W - 11f * gap) / 10f;
+
+        // Row 1: QWERTYUIOP
         for (int i = 0; i < ROW1.length; i++)
             addKey(L, gap + i*(kw1+gap), y, kw1, keyHeight,
                    String.valueOf(ROW1[i]).toUpperCase(), ROW1[i], false);
 
+        // Row 2: ASDFGHJKL + DEL
+        // kw2 = (W-11*gap)/10.5  =>  9*kw2 + 1.5*kw2 + 10*gap = W
         y += keyHeight + gap;
-        float ind = kw1 * 0.55f;
-        float kw2 = (W - 2f*ind - 10f*gap) / 9f;
-        float bsW = W - ind - 9f*(kw2+gap) - gap - ind;
+        float kw2 = (W - 11f * gap) / 10.5f;
+        float bsW = 1.5f * kw2;
         for (int i = 0; i < ROW2.length; i++)
-            addKey(L, ind + i*(kw2+gap), y, kw2, keyHeight,
+            addKey(L, gap + i*(kw2+gap), y, kw2, keyHeight,
                    String.valueOf(ROW2[i]).toUpperCase(), ROW2[i], false);
-        addKey(L, ind + ROW2.length*(kw2+gap), y, bsW, keyHeight, "⌫", KEYCODE_DELETE, true);
+        addKey(L, gap + ROW2.length*(kw2+gap), y, bsW, keyHeight, "DEL", KEYCODE_DELETE, true);
 
+        // Row 3: Shift + ZXCVBNM + period
         y += keyHeight + gap;
-        float u = (W - 12f*gap) / 10f;
-        float sw = 1.5f * u;
-        float lx = gap + sw + gap;
-        addKey(L, gap, y, sw, keyHeight, "⇧", KEYCODE_SHIFT, true);
+        float u3 = (W - 12f * gap) / 10f;
+        float shiftW = 1.5f * u3;
+        float lx3 = gap + shiftW + gap;
+        addKey(L, gap, y, shiftW, keyHeight, "⇧", KEYCODE_SHIFT, true);
         for (int i = 0; i < ROW3.length; i++)
-            addKey(L, lx + i*(u+gap), y, u, keyHeight,
+            addKey(L, lx3 + i*(u3+gap), y, u3, keyHeight,
                    String.valueOf(ROW3[i]).toUpperCase(), ROW3[i], false);
-        float dx = lx + ROW3.length*(u+gap);
-        addKey(L, dx, y, W-dx-gap, keyHeight, ".", '.', false);
+        float dotX = lx3 + ROW3.length * (u3 + gap);
+        addKey(L, dotX, y, W - dotX - gap, keyHeight, ".", '.', false);
 
+        // Row 4: ?123  IME  SPACE  GO
         y += keyHeight + gap;
-        float tw = kw1 * 2.2f;
-        float ew = kw1 * 2.2f;
-        float spW = W - 2f*gap - tw - ew - 2f*gap;
-        addKey(L, gap,                y, tw,  keyHeight, "?123",  KEYCODE_SYMBOLS, true);
-        addKey(L, gap+tw+gap,         y, spW, keyHeight, "",      KEYCODE_SPACE,   false);
-        addKey(L, gap+tw+gap+spW+gap, y, W-(gap+tw+gap+spW+gap)-gap, keyHeight, "↵", KEYCODE_DONE, true);
+        float toggleW = kw1 * 1.8f;
+        float switchW = kw1 * 1.2f;
+        float enterW  = kw1 * 1.8f;
+        float spaceW  = W - 5f*gap - toggleW - switchW - enterW;
+        float x4 = gap;
+        addKey(L, x4, y, toggleW, keyHeight, "?123", KEYCODE_SYMBOLS, true);
+        x4 += toggleW + gap;
+        addKey(L, x4, y, switchW, keyHeight, "IME", KEYCODE_SWITCH, true);
+        x4 += switchW + gap;
+        addKey(L, x4, y, spaceW, keyHeight, "", KEYCODE_SPACE, false);
+        x4 += spaceW + gap;
+        addKey(L, x4, y, W - x4 - gap, keyHeight, "GO", KEYCODE_DONE, true);
     }
 
-    private void buildSymbols(java.util.ArrayList<Key> L, int W) {
+    private void buildSymbolsLayout(java.util.ArrayList<Key> L, int W) {
         float y = predH + gap;
-        float kw1 = (W - 11f*gap) / 10f;
+        float kw1 = (W - 11f * gap) / 10f;
+
+        // Row 1: 1-0
         for (int i = 0; i < SYM1_L.length; i++)
             addKey(L, gap + i*(kw1+gap), y, kw1, keyHeight, SYM1_L[i], SYM1_C[i], false);
 
+        // Row 2: @ # $ % ^ & * ( )  + DEL
         y += keyHeight + gap;
-        float ind = kw1 * 0.55f;
-        float kw2 = (W - 2f*ind - 10f*gap) / 9f;
-        float bsW = W - ind - 9f*(kw2+gap) - gap - ind;
+        float kw2s = (W - 11f * gap) / 10.5f;
+        float bsWs = 1.5f * kw2s;
         for (int i = 0; i < SYM2_L.length; i++)
-            addKey(L, ind + i*(kw2+gap), y, kw2, keyHeight, SYM2_L[i], SYM2_C[i], false);
-        addKey(L, ind + SYM2_L.length*(kw2+gap), y, bsW, keyHeight, "⌫", KEYCODE_DELETE, true);
+            addKey(L, gap + i*(kw2s+gap), y, kw2s, keyHeight, SYM2_L[i], SYM2_C[i], false);
+        addKey(L, gap + SYM2_L.length*(kw2s+gap), y, bsWs, keyHeight, "DEL", KEYCODE_DELETE, true);
 
+        // Row 3: ! ? ' " / ; : \ .
         y += keyHeight + gap;
-        float u  = (W - 12f*gap) / 10f;
-        float sw = 1.5f * u;
-        float lx = gap + sw + gap;
-        addKey(L, gap, y, sw, keyHeight, SYM3_L[0], SYM3_C[0], false);
-        for (int i = 1; i < SYM3_L.length-1; i++)
-            addKey(L, lx + (i-1)*(u+gap), y, u, keyHeight, SYM3_L[i], SYM3_C[i], false);
-        float lx2 = lx + (SYM3_L.length-2)*(u+gap);
-        addKey(L, lx2, y, W-lx2-gap, keyHeight,
+        float u3 = (W - 12f * gap) / 10f;
+        float shiftW = 1.5f * u3;
+        float lx3 = gap + shiftW + gap;
+        addKey(L, gap, y, shiftW, keyHeight, SYM3_L[0], SYM3_C[0], false);
+        for (int i = 1; i < SYM3_L.length - 1; i++)
+            addKey(L, lx3 + (i-1)*(u3+gap), y, u3, keyHeight, SYM3_L[i], SYM3_C[i], false);
+        float lastX = lx3 + (SYM3_L.length - 2) * (u3 + gap);
+        addKey(L, lastX, y, W - lastX - gap, keyHeight,
                SYM3_L[SYM3_L.length-1], SYM3_C[SYM3_C.length-1], false);
 
+        // Row 4: ABC  IME  SPACE  GO
         y += keyHeight + gap;
-        float tw = kw1 * 2.2f;
-        float ew = kw1 * 2.2f;
-        float spW = W - 2f*gap - tw - ew - 2f*gap;
-        addKey(L, gap,                y, tw,  keyHeight, "ABC",   KEYCODE_SYMBOLS, true);
-        addKey(L, gap+tw+gap,         y, spW, keyHeight, "",      KEYCODE_SPACE,   false);
-        addKey(L, gap+tw+gap+spW+gap, y, W-(gap+tw+gap+spW+gap)-gap, keyHeight, "↵", KEYCODE_DONE, true);
+        float toggleW = kw1 * 1.8f;
+        float switchW = kw1 * 1.2f;
+        float enterW  = kw1 * 1.8f;
+        float spaceW  = W - 5f*gap - toggleW - switchW - enterW;
+        float x4 = gap;
+        addKey(L, x4, y, toggleW, keyHeight, "ABC", KEYCODE_SYMBOLS, true);
+        x4 += toggleW + gap;
+        addKey(L, x4, y, switchW, keyHeight, "IME", KEYCODE_SWITCH, true);
+        x4 += switchW + gap;
+        addKey(L, x4, y, spaceW, keyHeight, "", KEYCODE_SPACE, false);
+        x4 += spaceW + gap;
+        addKey(L, x4, y, W - x4 - gap, keyHeight, "GO", KEYCODE_DONE, true);
     }
 
     private void addKey(java.util.ArrayList<Key> L, float x, float y,
@@ -334,10 +357,7 @@ public class BulletKeyboardView extends View {
 
     private int predAt(float x) {
         if (keys == null || keys.length < 3) return -1;
-        for (int i = 0; i < 3; i++) {
-            Key k = keys[i];
-            if (x >= k.x && x <= k.x+k.w) return i;
-        }
+        for (int i = 0; i < 3; i++) { Key k = keys[i]; if (x >= k.x && x <= k.x+k.w) return i; }
         return -1;
     }
 
