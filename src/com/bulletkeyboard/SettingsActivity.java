@@ -30,6 +30,8 @@ public class SettingsActivity extends Activity {
         heightLabel = (TextView)   findViewById(R.id.key_height_label);
         colorGroup  = (RadioGroup) findViewById(R.id.color_radio_group);
 
+        if (heightBar == null || heightLabel == null || colorGroup == null) return;
+
         int saved = prefs.getInt("key_height", 55);
         heightBar.setMax(MAX_DP - MIN_DP);
         heightBar.setProgress(saved - MIN_DP);
@@ -67,7 +69,8 @@ public class SettingsActivity extends Activity {
         if ("brown".equals(theme))    id = R.id.radio_brown;
         if ("burgundy".equals(theme)) id = R.id.radio_burgundy;
         if ("gray".equals(theme))     id = R.id.radio_gray;
-        ((RadioButton) findViewById(id)).setChecked(true);
+        RadioButton rb = (RadioButton) findViewById(id);
+        if (rb != null) rb.setChecked(true);
     }
 
     private String themeFor(int id) {
