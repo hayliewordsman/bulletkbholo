@@ -394,7 +394,7 @@ public class BulletKeyboardView extends View {
         float x4 = gap;
         addSpecialKey(L, x4, y, toggleW, keyHeight, "ABC", KEYCODE_SYMBOLS);
         x4 += toggleW + gap;
-        addSpecialKey(L, x4, y, switchW, keyHeight, "IME", KEYCODE_SWITCH);
+        addSpecialKey(L, x4, y, switchW, keyHeight, "🌐", KEYCODE_SWITCH);
         x4 += switchW + gap;
         Key spKey = new Key();
         spKey.x = x4; spKey.y = y; spKey.w = spaceW; spKey.h = keyHeight;
