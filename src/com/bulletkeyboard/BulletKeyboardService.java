@@ -2,7 +2,6 @@ package com.bulletkeyboard;
 
 import android.content.res.Configuration;
 import android.inputmethodservice.InputMethodService;
-import android.view.KeyEvent;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
@@ -34,6 +33,7 @@ public class BulletKeyboardService extends InputMethodService
         if (keyboardView != null) {
             keyboardView.setShifted(false);
             keyboardView.setSymbolsMode(false);
+            keyboardView.setEmojiMode(false);
             keyboardView.setPredictions(new String[]{"","",""});
         }
     }
@@ -80,16 +80,18 @@ public class BulletKeyboardService extends InputMethodService
                         .showInputMethodPicker();
                 break;
 
-            case BulletKeyboardView.KEYCODE_SPACE:
-                String[] cur = predEngine.getSuggestions();
-                if (cur[0] != null && cur[0].length() > 0) {
-                    replaceCurrentWord(ic, cur[0]);
-                    ic.commitText(" ", 1);
-                } else {
-                    ic.commitText(" ", 1);
+            case BulletKeyboardView.KEYCODE_EMOJI:
+                if (keyboardView != null) {
+                    keyboardView.setEmojiMode(!keyboardView.isEmojiMode());
                     predEngine.reset();
                     postPredictions();
                 }
+                break;
+
+            case BulletKeyboardView.KEYCODE_SPACE:
+                ic.commitText(" ", 1);
+                predEngine.reset();
+                postPredictions();
                 dropShiftOnce();
                 break;
 
@@ -108,6 +110,13 @@ public class BulletKeyboardService extends InputMethodService
                 postPredictions();
                 break;
         }
+    }
+
+    @Override
+    public void onTextInsert(String text) {
+        InputConnection ic = getCurrentInputConnection();
+        if (ic == null || text == null) return;
+        ic.commitText(text, 1);
     }
 
     @Override
@@ -139,14 +148,15 @@ public class BulletKeyboardService extends InputMethodService
 
     private void sendEnterOrAction(InputConnection ic) {
         EditorInfo ei = getCurrentInputEditorInfo();
+        boolean multiLine = ei != null &&
+                (ei.inputType & EditorInfo.TYPE_TEXT_FLAG_MULTI_LINE) != 0;
         int action = (ei != null)
                 ? (ei.imeOptions & EditorInfo.IME_MASK_ACTION)
                 : EditorInfo.IME_ACTION_NONE;
-        if (action != EditorInfo.IME_ACTION_NONE && action != EditorInfo.IME_ACTION_UNSPECIFIED)
+        if (!multiLine && action != EditorInfo.IME_ACTION_NONE
+                && action != EditorInfo.IME_ACTION_UNSPECIFIED)
             ic.performEditorAction(action);
-        else {
-            ic.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_ENTER));
-            ic.sendKeyEvent(new KeyEvent(KeyEvent.ACTION_UP,   KeyEvent.KEYCODE_ENTER));
-        }
+        else
+            ic.commitText("\n", 1);
     }
 }

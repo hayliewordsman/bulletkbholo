@@ -18,6 +18,7 @@ public class BulletKeyboardView extends View {
     public interface KeyboardActionListener {
         void onKeyPress(int primaryCode);
         void onPredictionSelected(String word);
+        void onTextInsert(String text);
     }
 
     // ── Key codes ─────────────────────────────────────────────────────────────
@@ -27,6 +28,7 @@ public class BulletKeyboardView extends View {
     public static final int KEYCODE_DELETE  = -5;
     public static final int KEYCODE_SWITCH  = -6;
     public static final int KEYCODE_SPACE   = 32;
+    public static final int KEYCODE_EMOJI   = -7;
 
     // ── Layout constants ──────────────────────────────────────────────────────
     private static final float CORNER_DP   = 5f;
@@ -52,6 +54,7 @@ public class BulletKeyboardView extends View {
     // ── State ─────────────────────────────────────────────────────────────────
     private boolean isShifted     = false;
     private boolean isSymbolsMode = false;
+    private boolean isEmojiMode   = false;
     private int     pressedIndex  = -1;
     private float   touchDownY    = 0f;
     private int     touchDownKey  = -1;
@@ -82,6 +85,7 @@ public class BulletKeyboardView extends View {
         String label;
         int code;
         boolean isSpecial;
+        String insert;
     }
 
     // ═════════════════════════════════════════════════════════════════════════
@@ -194,14 +198,16 @@ public class BulletKeyboardView extends View {
     // ── Key layout ────────────────────────────────────────────────────────────
     private void buildKeys(int W) {
         java.util.ArrayList<Key> list = new java.util.ArrayList<Key>();
-        if (isSymbolsMode) {
+        if (isEmojiMode) {
+            buildEmojiLayout(list, W);
+        } else if (isSymbolsMode) {
             buildSymbolsLayout(list, W);
         } else {
             buildQwertyLayout(list, W);
         }
         keys = (Key[]) list.toArray(new Key[list.size()]);
 
-        float ts = keyHeight * 0.38f;
+        float ts = isEmojiMode ? keyHeight * 0.50f : keyHeight * 0.38f;
         pKeyText.setTextSize(ts);
         pSmallText.setTextSize(ts * 0.75f);
         pPredText.setTextSize(keyHeight * 0.25f);
@@ -234,9 +240,9 @@ public class BulletKeyboardView extends View {
         }
         addSpecialKey(L, gap + ROW2.length * (kw2 + gap), y, bsW, keyHeight, "DEL", KEYCODE_DELETE);
 
-        // Row 3: Shift(1.5x) + ZXCVBNM + period(1x)
+        // Row 3: Shift(1.5x) + ZXCVBNM + comma + period
         y += keyHeight + gap;
-        float u3     = (W - 10f * gap) / 9.5f;
+        float u3     = (W - 11f * gap) / 10.5f;
         float shiftW = 1.5f * u3;
         float lx3    = gap + shiftW + gap;
         addSpecialKey(L, gap, y, shiftW, keyHeight, "⇧", KEYCODE_SHIFT);
@@ -248,23 +254,28 @@ public class BulletKeyboardView extends View {
             k.code  = ROW3[i];
             L.add(k);
         }
-        float dotX = lx3 + ROW3.length * (u3 + gap);
+        float commaX = lx3 + ROW3.length * (u3 + gap);
+        Key commaKey = new Key();
+        commaKey.x = commaX; commaKey.y = y; commaKey.w = u3; commaKey.h = keyHeight;
+        commaKey.label = ","; commaKey.code = ',';
+        L.add(commaKey);
+        float dotX = commaX + u3 + gap;
         Key dot = new Key();
         dot.x = dotX; dot.y = y; dot.w = u3; dot.h = keyHeight;
         dot.label = "."; dot.code = '.';
         L.add(dot);
 
-        // Row 4: ?123  IME  SPACE  enter
+        // Row 4: ?123  😊  SPACE  enter
         y += keyHeight + gap;
         float toggleW = kw1 * 1.8f;
-        float switchW = kw1 * 1.2f;
+        float emojiW  = kw1 * 1.2f;
         float enterW  = kw1 * 1.8f;
-        float spaceW  = W - 5f * gap - toggleW - switchW - enterW;
+        float spaceW  = W - 5f * gap - toggleW - emojiW - enterW;
         float x4 = gap;
         addSpecialKey(L, x4, y, toggleW, keyHeight, "?123", KEYCODE_SYMBOLS);
         x4 += toggleW + gap;
-        addSpecialKey(L, x4, y, switchW, keyHeight, "IME",  KEYCODE_SWITCH);
-        x4 += switchW + gap;
+        addSpecialKey(L, x4, y, emojiW, keyHeight, "😊", KEYCODE_EMOJI);
+        x4 += emojiW + gap;
         Key spKey = new Key();
         spKey.x = x4; spKey.y = y; spKey.w = spaceW; spKey.h = keyHeight;
         spKey.label = ""; spKey.code = KEYCODE_SPACE;
@@ -340,6 +351,41 @@ public class BulletKeyboardView extends View {
         addSpecialKey(L, x4, y, W - x4 - gap, keyHeight, "↵", KEYCODE_DONE);
     }
 
+    private void buildEmojiLayout(java.util.ArrayList<Key> L, int W) {
+        String[] ER1 = {"😀","😂","🥰","😍","😘","😊","😎","🤔","😭","😅"};
+        String[] ER2 = {"👍","👎","❤️","🔥","💪","🎉","🙏","👋","✨","💯"};
+        String[] ER3 = {"🍕","🎮","📱","🎵","🌟","🚀","💡","🐶","🌈","🎂"};
+        String[][] rows = new String[][]{ER1, ER2, ER3};
+        float kw = (W - 11f * gap) / 10f;
+        float y  = gap;
+        for (int row = 0; row < rows.length; row++) {
+            String[] emojis = rows[row];
+            for (int i = 0; i < emojis.length; i++) {
+                Key k = new Key();
+                k.x = gap + i * (kw + gap);
+                k.y = y; k.w = kw; k.h = keyHeight;
+                k.label = emojis[i]; k.code = 0; k.insert = emojis[i];
+                L.add(k);
+            }
+            y += keyHeight + gap;
+        }
+        float toggleW = kw * 1.8f;
+        float switchW = kw * 1.2f;
+        float enterW  = kw * 1.8f;
+        float spaceW  = W - 5f * gap - toggleW - switchW - enterW;
+        float x4 = gap;
+        addSpecialKey(L, x4, y, toggleW, keyHeight, "ABC", KEYCODE_EMOJI);
+        x4 += toggleW + gap;
+        addSpecialKey(L, x4, y, switchW, keyHeight, "IME", KEYCODE_SWITCH);
+        x4 += switchW + gap;
+        Key sp = new Key();
+        sp.x = x4; sp.y = y; sp.w = spaceW; sp.h = keyHeight;
+        sp.label = ""; sp.code = KEYCODE_SPACE;
+        L.add(sp);
+        x4 += spaceW + gap;
+        addSpecialKey(L, x4, y, W - x4 - gap, keyHeight, "↵", KEYCODE_DONE);
+    }
+
     private void addSpecialKey(java.util.ArrayList<Key> L,
             float x, float y, float w, float h, String label, int code) {
         Key k = new Key();
@@ -353,7 +399,7 @@ public class BulletKeyboardView extends View {
     // based on the next character of each suggestion beyond the typed prefix.
     private void computePredKeyIndices() {
         predKeyIndices[0] = predKeyIndices[1] = predKeyIndices[2] = -1;
-        if (isSymbolsMode || keys == null) return;
+        if (isSymbolsMode || isEmojiMode || keys == null) return;
         for (int i = 0; i < 3; i++) {
             String pred = (i < predictions.length) ? predictions[i] : "";
             if (pred == null || pred.length() <= currentWordLength) continue;
@@ -417,7 +463,7 @@ public class BulletKeyboardView extends View {
             // Label — shift down when a prediction chip overlays this key
             if (k.label.length() > 0) {
                 String lbl = k.label;
-                if (!k.isSpecial && isShifted && !isSymbolsMode) {
+                if (!k.isSpecial && isShifted && !isSymbolsMode && !isEmojiMode) {
                     lbl = lbl.toUpperCase();
                 }
                 Paint tp = k.isSpecial ? pSmallText : pKeyText;
@@ -438,7 +484,7 @@ public class BulletKeyboardView extends View {
     }
 
     private void drawPredictions(Canvas canvas) {
-        if (keys == null || isSymbolsMode) return;
+        if (keys == null || isSymbolsMode || isEmojiMode) return;
 
         float m = 2f * density;
 
@@ -507,6 +553,8 @@ public class BulletKeyboardView extends View {
                     }
                     if (predIdx >= 0 && swipeDy > SWIPE_UP_DP * density) {
                         listener.onPredictionSelected(predictions[predIdx]);
+                    } else if (keys[touchDownKey].insert != null) {
+                        listener.onTextInsert(keys[touchDownKey].insert);
                     } else {
                         listener.onKeyPress(keys[touchDownKey].code);
                     }
@@ -555,6 +603,7 @@ public class BulletKeyboardView extends View {
     public void setSymbolsMode(boolean sym) {
         if (isSymbolsMode != sym) {
             isSymbolsMode = sym;
+            if (sym) isEmojiMode = false;
             if (getWidth() > 0) buildKeys(getWidth());
             invalidate();
         }
@@ -562,6 +611,19 @@ public class BulletKeyboardView extends View {
 
     public boolean isSymbolsMode() {
         return isSymbolsMode;
+    }
+
+    public void setEmojiMode(boolean emoji) {
+        if (isEmojiMode != emoji) {
+            isEmojiMode = emoji;
+            if (emoji) isSymbolsMode = false;
+            if (getWidth() > 0) buildKeys(getWidth());
+            invalidate();
+        }
+    }
+
+    public boolean isEmojiMode() {
+        return isEmojiMode;
     }
 
     public void setKeyboardActionListener(KeyboardActionListener l) {
