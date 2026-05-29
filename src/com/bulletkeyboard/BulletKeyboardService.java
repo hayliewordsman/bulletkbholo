@@ -1,22 +1,39 @@
 package com.bulletkeyboard;
 
+import android.content.SharedPreferences;
 import android.content.res.Configuration;
 import android.inputmethodservice.InputMethodService;
+import android.preference.PreferenceManager;
 import android.view.View;
 import android.view.inputmethod.EditorInfo;
 import android.view.inputmethod.InputConnection;
 import android.view.inputmethod.InputMethodManager;
 
 public class BulletKeyboardService extends InputMethodService
-        implements BulletKeyboardView.KeyboardActionListener {
+        implements BulletKeyboardView.KeyboardActionListener,
+                   SharedPreferences.OnSharedPreferenceChangeListener {
 
     private BulletKeyboardView keyboardView;
     private PredictionEngine   predEngine;
+    private SharedPreferences  prefs;
 
     @Override
     public void onCreate() {
         super.onCreate();
         predEngine = new PredictionEngine();
+        prefs = PreferenceManager.getDefaultSharedPreferences(this);
+        prefs.registerOnSharedPreferenceChangeListener(this);
+    }
+
+    @Override
+    public void onDestroy() {
+        super.onDestroy();
+        if (prefs != null) prefs.unregisterOnSharedPreferenceChangeListener(this);
+    }
+
+    @Override
+    public void onSharedPreferenceChanged(SharedPreferences sp, String key) {
+        if (keyboardView != null) keyboardView.reloadPreferences(this);
     }
 
     @Override
