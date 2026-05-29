@@ -88,6 +88,14 @@ public class BulletKeyboardService extends InputMethodService
                 }
                 break;
 
+            case BulletKeyboardView.KEYCODE_EMOJI_PREV:
+                if (keyboardView != null) keyboardView.prevEmojiPage();
+                break;
+
+            case BulletKeyboardView.KEYCODE_EMOJI_NEXT:
+                if (keyboardView != null) keyboardView.nextEmojiPage();
+                break;
+
             case BulletKeyboardView.KEYCODE_SPACE:
                 ic.commitText(" ", 1);
                 predEngine.reset();

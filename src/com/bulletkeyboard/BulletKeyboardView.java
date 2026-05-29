@@ -22,19 +22,22 @@ public class BulletKeyboardView extends View {
     }
 
     // ── Key codes ─────────────────────────────────────────────────────────────
-    public static final int KEYCODE_SHIFT   = -1;
-    public static final int KEYCODE_SYMBOLS = -2;
-    public static final int KEYCODE_DONE    = -4;
-    public static final int KEYCODE_DELETE  = -5;
-    public static final int KEYCODE_SWITCH  = -6;
-    public static final int KEYCODE_SPACE   = 32;
-    public static final int KEYCODE_EMOJI   = -7;
+    public static final int KEYCODE_SHIFT      = -1;
+    public static final int KEYCODE_SYMBOLS    = -2;
+    public static final int KEYCODE_DONE       = -4;
+    public static final int KEYCODE_DELETE     = -5;
+    public static final int KEYCODE_SWITCH     = -6;
+    public static final int KEYCODE_SPACE      = 32;
+    public static final int KEYCODE_EMOJI      = -7;
+    public static final int KEYCODE_EMOJI_PREV = -8;
+    public static final int KEYCODE_EMOJI_NEXT = -9;
 
     // ── Layout constants ──────────────────────────────────────────────────────
-    private static final float CORNER_DP   = 5f;
-    private static final float GAP_DP      = 3f;
-    private static final float SHADOW_DP   = 2f;
-    private static final float SWIPE_UP_DP = 10f;  // min upward delta to accept suggestion
+    private static final float CORNER_DP      = 5f;
+    private static final float GAP_DP         = 3f;
+    private static final float SHADOW_DP      = 2f;
+    private static final float SWIPE_UP_DP    = 10f;
+    private static final float SWIPE_HORIZ_DP = 40f;
 
     // ── QWERTY data ───────────────────────────────────────────────────────────
     private static final char[] ROW1 = {'q','w','e','r','t','y','u','i','o','p'};
@@ -51,12 +54,62 @@ public class BulletKeyboardView extends View {
     private static final String[] SYM3_L = {"!", "?", "'", "\"", "/", ";", ":", "\\", "."};
     private static final int[]    SYM3_C = {'!', '?', '\'', '"', '/', ';', ':', '\\', '.'};
 
+    // ── Emoji data (11 pages × 30 emoji) ─────────────────────────────────────
+    private static final String[][] EMOJI_PAGES = {
+        // 0: Happy faces
+        {"😀","😃","😄","😁","😆","😅","🤣","😂","🙂","🙃",
+         "😉","😊","😇","🥰","😍","🤩","😘","😗","😚","😋",
+         "😛","😜","🤪","😝","🤑","🤗","😎","🥸","🧐","😬"},
+        // 1: Sad / other faces
+        {"😐","😑","😶","😏","😒","😞","😔","😟","😕","🙁",
+         "☹️","😣","😖","😫","😩","🥺","😢","😭","😤","😠",
+         "😡","🤬","😈","👿","💀","☠️","💩","🤡","👻","👽"},
+        // 2: Hands
+        {"👋","🤚","🖐","✋","🖖","👌","🤌","🤏","✌️","🤞",
+         "🤟","🤘","🤙","👈","👉","👆","🖕","👇","☝️","🫵",
+         "👍","👎","✊","👊","🤛","🤜","👏","🙌","🫶","🙏"},
+        // 3: People & body
+        {"💪","🦾","🦵","🦶","👂","🦻","👃","🫀","🫁","🧠",
+         "🦴","🦷","👀","👁","💋","👅","👄","👶","🧒","👦",
+         "👧","🧑","👨","👩","🧓","👴","👵","👼","🎅","🤶"},
+        // 4: Animals 1 — mammals & birds
+        {"🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯",
+         "🦁","🐮","🐷","🐽","🐸","🐵","🙈","🙉","🙊","🐒",
+         "🐔","🐧","🐦","🦆","🦅","🦉","🦇","🐺","🐗","🐴"},
+        // 5: Animals 2 — bugs, sea & big cats
+        {"🦄","🐝","🐛","🦋","🐌","🐞","🐜","🦟","🦗","🕷",
+         "🦂","🦖","🦕","🐙","🦑","🦐","🦞","🦀","🐡","🐠",
+         "🐟","🐬","🐳","🐋","🦈","🐊","🐅","🐆","🦓","🦍"},
+        // 6: Nature & weather
+        {"🌸","🌺","🌻","🌹","🌷","🌼","💐","🍀","🌿","🌾",
+         "🌵","🌴","🌳","🌲","🍁","🍂","🍃","🌱","🌏","🌍",
+         "🌎","🌕","🌙","⭐","🌟","💫","⚡","🌈","❄️","🔥"},
+        // 7: Fruit & vegetables
+        {"🍎","🍊","🍋","🍇","🍓","🫐","🍉","🍑","🥭","🍍",
+         "🥥","🥝","🍅","🫒","🥑","🥦","🧄","🧅","🥕","🌽",
+         "🌶️","🥒","🥬","🫑","🥗","🍄","🌰","🍞","🥐","🫓"},
+        // 8: Cooked food & sweets
+        {"🍔","🍟","🍕","🌭","🥪","🥙","🌮","🌯","🍜","🍝",
+         "🍛","🍣","🍱","🥟","🍤","🍙","🍚","🍢","🥮","🧁",
+         "🍰","🎂","🍮","🍭","🍬","🍫","🍿","🍩","🍪","🍦"},
+        // 9: Drinks & activities
+        {"☕","🍵","🧃","🥤","🧋","🍺","🍻","🥂","🍷","🥃",
+         "🎮","🎯","⚽","🏀","🏈","🎸","🎵","🎶","🎤","🎧",
+         "🎨","📱","💻","📺","✈️","🚂","🚗","🚀","🎁","💌"},
+        // 10: Hearts & symbols
+        {"❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔",
+         "💕","💞","💓","💗","💖","💘","💝","💟","❣️","✨",
+         "🌀","♻️","✅","❌","⭕","🔴","🟡","🟢","🔵","🟣"}
+    };
+
     // ── State ─────────────────────────────────────────────────────────────────
     private boolean isShifted     = false;
     private boolean isSymbolsMode = false;
     private boolean isEmojiMode   = false;
+    private int     emojiPage     = 0;
     private int     pressedIndex  = -1;
     private float   touchDownY    = 0f;
+    private float   touchDownX    = 0f;
     private int     touchDownKey  = -1;
 
     private Key[]    keys;
@@ -226,7 +279,7 @@ public class BulletKeyboardView extends View {
             L.add(k);
         }
 
-        // Row 2: ASDFGHJKL + DEL
+        // Row 2: ASDFGHJKL + ⌫
         y += keyHeight + gap;
         float kw2 = (W - 11f * gap) / 10.5f;
         float bsW = 1.5f * kw2;
@@ -238,7 +291,7 @@ public class BulletKeyboardView extends View {
             k.code  = ROW2[i];
             L.add(k);
         }
-        addSpecialKey(L, gap + ROW2.length * (kw2 + gap), y, bsW, keyHeight, "DEL", KEYCODE_DELETE);
+        addSpecialKey(L, gap + ROW2.length * (kw2 + gap), y, bsW, keyHeight, "⌫", KEYCODE_DELETE);
 
         // Row 3: Shift(1.5x) + ZXCVBNM + comma + period
         y += keyHeight + gap;
@@ -296,7 +349,7 @@ public class BulletKeyboardView extends View {
             L.add(k);
         }
 
-        // Row 2: @#$%^&*() + DEL
+        // Row 2: @#$%^&*() + ⌫
         y += keyHeight + gap;
         float kw2s = (W - 11f * gap) / 10.5f;
         float bsWs = 1.5f * kw2s;
@@ -307,7 +360,7 @@ public class BulletKeyboardView extends View {
             k.label = SYM2_L[i]; k.code = SYM2_C[i];
             L.add(k);
         }
-        addSpecialKey(L, gap + SYM2_L.length * (kw2s + gap), y, bsWs, keyHeight, "DEL", KEYCODE_DELETE);
+        addSpecialKey(L, gap + SYM2_L.length * (kw2s + gap), y, bsWs, keyHeight, "⌫", KEYCODE_DELETE);
 
         // Row 3: same geometry as QWERTY row 3
         y += keyHeight + gap;
@@ -352,37 +405,39 @@ public class BulletKeyboardView extends View {
     }
 
     private void buildEmojiLayout(java.util.ArrayList<Key> L, int W) {
-        String[] ER1 = {"😀","😂","🥰","😍","😘","😊","😎","🤔","😭","😅"};
-        String[] ER2 = {"👍","👎","❤️","🔥","💪","🎉","🙏","👋","✨","💯"};
-        String[] ER3 = {"🍕","🎮","📱","🎵","🌟","🚀","💡","🐶","🌈","🎂"};
-        String[][] rows = new String[][]{ER1, ER2, ER3};
+        int pageIdx = (emojiPage >= 0 && emojiPage < EMOJI_PAGES.length) ? emojiPage : 0;
+        String[] page = EMOJI_PAGES[pageIdx];
         float kw = (W - 11f * gap) / 10f;
         float y  = gap;
-        for (int row = 0; row < rows.length; row++) {
-            String[] emojis = rows[row];
-            for (int i = 0; i < emojis.length; i++) {
+        for (int row = 0; row < 3; row++) {
+            for (int col = 0; col < 10; col++) {
+                int idx = row * 10 + col;
                 Key k = new Key();
-                k.x = gap + i * (kw + gap);
+                k.x = gap + col * (kw + gap);
                 k.y = y; k.w = kw; k.h = keyHeight;
-                k.label = emojis[i]; k.code = 0; k.insert = emojis[i];
+                k.label = page[idx]; k.code = 0; k.insert = page[idx];
                 L.add(k);
             }
             y += keyHeight + gap;
         }
-        float toggleW = kw * 1.8f;
-        float switchW = kw * 1.2f;
-        float enterW  = kw * 1.8f;
-        float spaceW  = W - 5f * gap - toggleW - switchW - enterW;
+        // Bottom row: ABC  ◀  [N/M]  ▶  ↵
+        float abcW   = kw * 1.5f;
+        float navW   = kw * 0.9f;
+        float enterW = kw * 1.5f;
+        float spaceW = W - 6f * gap - abcW - navW - navW - enterW;
         float x4 = gap;
-        addSpecialKey(L, x4, y, toggleW, keyHeight, "ABC", KEYCODE_EMOJI);
-        x4 += toggleW + gap;
-        addSpecialKey(L, x4, y, switchW, keyHeight, "IME", KEYCODE_SWITCH);
-        x4 += switchW + gap;
+        addSpecialKey(L, x4, y, abcW, keyHeight, "ABC", KEYCODE_EMOJI);
+        x4 += abcW + gap;
+        addSpecialKey(L, x4, y, navW, keyHeight, "◀", KEYCODE_EMOJI_PREV);
+        x4 += navW + gap;
         Key sp = new Key();
         sp.x = x4; sp.y = y; sp.w = spaceW; sp.h = keyHeight;
-        sp.label = ""; sp.code = KEYCODE_SPACE;
+        sp.label = (pageIdx + 1) + "/" + EMOJI_PAGES.length;
+        sp.code = KEYCODE_SPACE;
         L.add(sp);
         x4 += spaceW + gap;
+        addSpecialKey(L, x4, y, navW, keyHeight, "▶", KEYCODE_EMOJI_NEXT);
+        x4 += navW + gap;
         addSpecialKey(L, x4, y, W - x4 - gap, keyHeight, "↵", KEYCODE_DONE);
     }
 
@@ -394,9 +449,7 @@ public class BulletKeyboardView extends View {
         L.add(k);
     }
 
-    // ── Prediction key mapping ────────────────────────────────────────────────────
-    // Resolves which keyboard key each prediction chip should float above,
-    // based on the next character of each suggestion beyond the typed prefix.
+    // ── Prediction key mapping ─────────────────────────────────────────────────
     private void computePredKeyIndices() {
         predKeyIndices[0] = predKeyIndices[1] = predKeyIndices[2] = -1;
         if (isSymbolsMode || isEmojiMode || keys == null) return;
@@ -461,7 +514,7 @@ public class BulletKeyboardView extends View {
             canvas.drawRoundRect(r, corner, corner, face);
 
             // Label — shift down when a prediction chip overlays this key
-            if (k.label.length() > 0) {
+            if (k.label != null && k.label.length() > 0) {
                 String lbl = k.label;
                 if (!k.isSpecial && isShifted && !isSymbolsMode && !isEmojiMode) {
                     lbl = lbl.toUpperCase();
@@ -479,7 +532,6 @@ public class BulletKeyboardView extends View {
             }
         }
 
-        // Prediction chips rendered on top of their respective key faces
         drawPredictions(canvas);
     }
 
@@ -494,7 +546,6 @@ public class BulletKeyboardView extends View {
             if (pred == null || pred.length() == 0) continue;
 
             Key k = keys[predKeyIndices[i]];
-            // Chip spans the top ~45% of the key face
             RectF chip = new RectF(
                 k.x + m,
                 k.y + m,
@@ -529,34 +580,43 @@ public class BulletKeyboardView extends View {
             case MotionEvent.ACTION_DOWN:
             case MotionEvent.ACTION_POINTER_DOWN:
                 touchDownY   = y;
+                touchDownX   = x;
                 touchDownKey = keyAt(x, y);
                 pressedIndex = touchDownKey;
                 invalidate();
                 break;
 
             case MotionEvent.ACTION_MOVE:
-                // Keep original key highlighted even while finger slides upward
                 pressedIndex = touchDownKey;
                 invalidate();
                 break;
 
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_POINTER_UP:
-                computePredKeyIndices();  // ensure fresh before decision
+                computePredKeyIndices();
                 pressedIndex = -1;
                 invalidate();
-                if (touchDownKey >= 0 && listener != null) {
-                    float swipeDy = touchDownY - y;  // positive = upward motion
-                    int predIdx = -1;
-                    for (int pi = 0; pi < 3; pi++) {
-                        if (predKeyIndices[pi] == touchDownKey) { predIdx = pi; break; }
-                    }
-                    if (predIdx >= 0 && swipeDy > SWIPE_UP_DP * density) {
-                        listener.onPredictionSelected(predictions[predIdx]);
-                    } else if (keys[touchDownKey].insert != null) {
-                        listener.onTextInsert(keys[touchDownKey].insert);
-                    } else {
-                        listener.onKeyPress(keys[touchDownKey].code);
+                if (listener != null) {
+                    float swipeDy = touchDownY - y;
+                    float swipeDx = x - touchDownX;
+                    // Horizontal swipe in emoji mode navigates pages
+                    if (isEmojiMode
+                            && Math.abs(swipeDx) > SWIPE_HORIZ_DP * density
+                            && Math.abs(swipeDx) > Math.abs(swipeDy)) {
+                        if (swipeDx < 0) nextEmojiPage();
+                        else             prevEmojiPage();
+                    } else if (touchDownKey >= 0) {
+                        int predIdx = -1;
+                        for (int pi = 0; pi < 3; pi++) {
+                            if (predKeyIndices[pi] == touchDownKey) { predIdx = pi; break; }
+                        }
+                        if (predIdx >= 0 && swipeDy > SWIPE_UP_DP * density) {
+                            listener.onPredictionSelected(predictions[predIdx]);
+                        } else if (keys[touchDownKey].insert != null) {
+                            listener.onTextInsert(keys[touchDownKey].insert);
+                        } else {
+                            listener.onKeyPress(keys[touchDownKey].code);
+                        }
                     }
                 }
                 touchDownKey = -1;
@@ -616,6 +676,7 @@ public class BulletKeyboardView extends View {
     public void setEmojiMode(boolean emoji) {
         if (isEmojiMode != emoji) {
             isEmojiMode = emoji;
+            if (!emoji) emojiPage = 0;
             if (emoji) isSymbolsMode = false;
             if (getWidth() > 0) buildKeys(getWidth());
             invalidate();
@@ -624,6 +685,18 @@ public class BulletKeyboardView extends View {
 
     public boolean isEmojiMode() {
         return isEmojiMode;
+    }
+
+    public void prevEmojiPage() {
+        emojiPage = (emojiPage + EMOJI_PAGES.length - 1) % EMOJI_PAGES.length;
+        if (getWidth() > 0) buildKeys(getWidth());
+        invalidate();
+    }
+
+    public void nextEmojiPage() {
+        emojiPage = (emojiPage + 1) % EMOJI_PAGES.length;
+        if (getWidth() > 0) buildKeys(getWidth());
+        invalidate();
     }
 
     public void setKeyboardActionListener(KeyboardActionListener l) {
