@@ -54,53 +54,6 @@ public class BulletKeyboardView extends View {
     private static final String[] SYM3_L = {"!", "?", "'", "\"", "/", ";", ":", "\\", "."};
     private static final int[]    SYM3_C = {'!', '?', '\'', '"', '/', ';', ':', '\\', '.'};
 
-    // ── Emoji data (11 pages × 30 emoji) ─────────────────────────────────────
-    private static final String[][] EMOJI_PAGES = {
-        // 0: Happy faces
-        {"😀","😃","😄","😁","😆","😅","🤣","😂","🙂","🙃",
-         "😉","😊","😇","🥰","😍","🤩","😘","😗","😚","😋",
-         "😛","😜","🤪","😝","🤑","🤗","😎","🥸","🧐","😬"},
-        // 1: Sad / other faces
-        {"😐","😑","😶","😏","😒","😞","😔","😟","😕","🙁",
-         "☹️","😣","😖","😫","😩","🥺","😢","😭","😤","😠",
-         "😡","🤬","😈","👿","💀","☠️","💩","🤡","👻","👽"},
-        // 2: Hands
-        {"👋","🤚","🖐","✋","🖖","👌","🤌","🤏","✌️","🤞",
-         "🤟","🤘","🤙","👈","👉","👆","🖕","👇","☝️","🫵",
-         "👍","👎","✊","👊","🤛","🤜","👏","🙌","🫶","🙏"},
-        // 3: People & body
-        {"💪","🦾","🦵","🦶","👂","🦻","👃","🫀","🫁","🧠",
-         "🦴","🦷","👀","👁","💋","👅","👄","👶","🧒","👦",
-         "👧","🧑","👨","👩","🧓","👴","👵","👼","🎅","🤶"},
-        // 4: Animals 1 — mammals & birds
-        {"🐶","🐱","🐭","🐹","🐰","🦊","🐻","🐼","🐨","🐯",
-         "🦁","🐮","🐷","🐽","🐸","🐵","🙈","🙉","🙊","🐒",
-         "🐔","🐧","🐦","🦆","🦅","🦉","🦇","🐺","🐗","🐴"},
-        // 5: Animals 2 — bugs, sea & big cats
-        {"🦄","🐝","🐛","🦋","🐌","🐞","🐜","🦟","🦗","🕷",
-         "🦂","🦖","🦕","🐙","🦑","🦐","🦞","🦀","🐡","🐠",
-         "🐟","🐬","🐳","🐋","🦈","🐊","🐅","🐆","🦓","🦍"},
-        // 6: Nature & weather
-        {"🌸","🌺","🌻","🌹","🌷","🌼","💐","🍀","🌿","🌾",
-         "🌵","🌴","🌳","🌲","🍁","🍂","🍃","🌱","🌏","🌍",
-         "🌎","🌕","🌙","⭐","🌟","💫","⚡","🌈","❄️","🔥"},
-        // 7: Fruit & vegetables
-        {"🍎","🍊","🍋","🍇","🍓","🫐","🍉","🍑","🥭","🍍",
-         "🥥","🥝","🍅","🫒","🥑","🥦","🧄","🧅","🥕","🌽",
-         "🌶️","🥒","🥬","🫑","🥗","🍄","🌰","🍞","🥐","🫓"},
-        // 8: Cooked food & sweets
-        {"🍔","🍟","🍕","🌭","🥪","🥙","🌮","🌯","🍜","🍝",
-         "🍛","🍣","🍱","🥟","🍤","🍙","🍚","🍢","🥮","🧁",
-         "🍰","🎂","🍮","🍭","🍬","🍫","🍿","🍩","🍪","🍦"},
-        // 9: Drinks & activities
-        {"☕","🍵","🧃","🥤","🧋","🍺","🍻","🥂","🍷","🥃",
-         "🎮","🎯","⚽","🏀","🏈","🎸","🎵","🎶","🎤","🎧",
-         "🎨","📱","💻","📺","✈️","🚂","🚗","🚀","🎁","💌"},
-        // 10: Hearts & symbols
-        {"❤️","🧡","💛","💚","💙","💜","🖤","🤍","🤎","💔",
-         "💕","💞","💓","💗","💖","💘","💝","💟","❣️","✨",
-         "🌀","♻️","✅","❌","⭕","🔴","🟡","🟢","🔵","🟣"}
-    };
 
     // ── State ─────────────────────────────────────────────────────────────────
     private boolean isShifted     = false;
@@ -405,8 +358,8 @@ public class BulletKeyboardView extends View {
     }
 
     private void buildEmojiLayout(java.util.ArrayList<Key> L, int W) {
-        int pageIdx = (emojiPage >= 0 && emojiPage < EMOJI_PAGES.length) ? emojiPage : 0;
-        String[] page = EMOJI_PAGES[pageIdx];
+        int pageIdx = (emojiPage >= 0 && emojiPage < EmojiData.PAGES.length) ? emojiPage : 0;
+        String[] page = EmojiData.PAGES[pageIdx];
         float kw = (W - 11f * gap) / 10f;
         float y  = gap;
         for (int row = 0; row < 3; row++) {
@@ -432,7 +385,7 @@ public class BulletKeyboardView extends View {
         x4 += navW + gap;
         Key sp = new Key();
         sp.x = x4; sp.y = y; sp.w = spaceW; sp.h = keyHeight;
-        sp.label = (pageIdx + 1) + "/" + EMOJI_PAGES.length;
+        sp.label = (pageIdx + 1) + "/" + EmojiData.PAGES.length;
         sp.code = KEYCODE_SPACE;
         L.add(sp);
         x4 += spaceW + gap;
@@ -688,13 +641,13 @@ public class BulletKeyboardView extends View {
     }
 
     public void prevEmojiPage() {
-        emojiPage = (emojiPage + EMOJI_PAGES.length - 1) % EMOJI_PAGES.length;
+        emojiPage = (emojiPage + EmojiData.PAGES.length - 1) % EmojiData.PAGES.length;
         if (getWidth() > 0) buildKeys(getWidth());
         invalidate();
     }
 
     public void nextEmojiPage() {
-        emojiPage = (emojiPage + 1) % EMOJI_PAGES.length;
+        emojiPage = (emojiPage + 1) % EmojiData.PAGES.length;
         if (getWidth() > 0) buildKeys(getWidth());
         invalidate();
     }
