@@ -20,7 +20,7 @@ public class BulletKeyboardService extends InputMethodService
     @Override
     public void onCreate() {
         super.onCreate();
-        predEngine = new PredictionEngine();
+        predEngine = new PredictionEngine(this);
         prefs = PreferenceManager.getDefaultSharedPreferences(this);
         prefs.registerOnSharedPreferenceChangeListener(this);
     }

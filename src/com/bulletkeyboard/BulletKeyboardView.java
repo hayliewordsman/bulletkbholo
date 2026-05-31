@@ -11,6 +11,10 @@ import android.preference.PreferenceManager;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.View;
+import java.io.BufferedReader;
+import java.io.InputStream;
+import java.io.InputStreamReader;
+import java.util.ArrayList;
 
 public class BulletKeyboardView extends View {
 
@@ -56,6 +60,7 @@ public class BulletKeyboardView extends View {
 
 
     // ── State ─────────────────────────────────────────────────────────────────
+    private String[][] emojiPages = new String[0][];
     private boolean isShifted     = false;
     private boolean isSymbolsMode = false;
     private boolean isEmojiMode   = false;
@@ -116,7 +121,34 @@ public class BulletKeyboardView extends View {
         keyHeight = (int)(heightDp * density);
         loadTheme(prefs.getString("color_theme", "black"));
 
+        emojiPages = loadEmojiPages(context);
         buildPaints();
+    }
+
+    private String[][] loadEmojiPages(Context context) {
+        try {
+            InputStream is = context.getResources().openRawResource(R.raw.emoji_pages);
+            BufferedReader br = new BufferedReader(new InputStreamReader(is, "UTF-8"));
+            ArrayList<String[]> pages = new ArrayList<String[]>();
+            ArrayList<String> current = new ArrayList<String>();
+            String line;
+            while ((line = br.readLine()) != null) {
+                if (line.trim().length() == 0) {
+                    if (current.size() > 0) {
+                        pages.add(current.toArray(new String[current.size()]));
+                        current = new ArrayList<String>();
+                    }
+                } else {
+                    current.add(line.trim());
+                }
+            }
+            if (current.size() > 0)
+                pages.add(current.toArray(new String[current.size()]));
+            br.close();
+            return pages.toArray(new String[pages.size()][]);
+        } catch (Exception e) {
+            return new String[0][];
+        }
     }
 
     // ── Theme loading ─────────────────────────────────────────────────────────
@@ -358,8 +390,8 @@ public class BulletKeyboardView extends View {
     }
 
     private void buildEmojiLayout(java.util.ArrayList<Key> L, int W) {
-        int pageIdx = (emojiPage >= 0 && emojiPage < EmojiData.PAGES.length) ? emojiPage : 0;
-        String[] page = EmojiData.PAGES[pageIdx];
+        int pageIdx = (emojiPage >= 0 && emojiPage < emojiPages.length) ? emojiPage : 0;
+        String[] page = emojiPages[pageIdx];
         float kw = (W - 11f * gap) / 10f;
         float y  = gap;
         for (int row = 0; row < 3; row++) {
@@ -385,7 +417,7 @@ public class BulletKeyboardView extends View {
         x4 += navW + gap;
         Key sp = new Key();
         sp.x = x4; sp.y = y; sp.w = spaceW; sp.h = keyHeight;
-        sp.label = (pageIdx + 1) + "/" + EmojiData.PAGES.length;
+        sp.label = (pageIdx + 1) + "/" + emojiPages.length;
         sp.code = KEYCODE_SPACE;
         L.add(sp);
         x4 += spaceW + gap;
@@ -641,13 +673,13 @@ public class BulletKeyboardView extends View {
     }
 
     public void prevEmojiPage() {
-        emojiPage = (emojiPage + EmojiData.PAGES.length - 1) % EmojiData.PAGES.length;
+        emojiPage = (emojiPage + emojiPages.length - 1) % emojiPages.length;
         if (getWidth() > 0) buildKeys(getWidth());
         invalidate();
     }
 
     public void nextEmojiPage() {
-        emojiPage = (emojiPage + 1) % EmojiData.PAGES.length;
+        emojiPage = (emojiPage + 1) % emojiPages.length;
         if (getWidth() > 0) buildKeys(getWidth());
         invalidate();
     }
