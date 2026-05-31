@@ -1,0 +1,39 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <!-- Black theme -->
+    <color name="black_key">#212121</color>
+    <color name="black_key_pressed">#424242</color>
+    <color name="black_special_key">#171717</color>
+    <color name="black_key_text">#FFFFFF</color>
+    <color name="black_pred_bg">#2C2C2C</color>
+    <color name="black_keyboard_bg">#141414</color>
+
+    <!-- Brown theme -->
+    <color name="brown_key">#3E2723</color>
+    <color name="brown_key_pressed">#5D4037</color>
+    <color name="brown_special_key">#2A1A17</color>
+    <color name="brown_key_text">#EFEBE9</color>
+    <color name="brown_pred_bg">#4E342E</color>
+    <color name="brown_keyboard_bg">#1C0F0C</color>
+
+    <!-- Burgundy theme -->
+    <color name="burgundy_key">#4A0010</color>
+    <color name="burgundy_key_pressed">#7B0026</color>
+    <color name="burgundy_special_key">#30000A</color>
+    <color name="burgundy_key_text">#FCE4EC</color>
+    <color name="burgundy_pred_bg">#5D0018</color>
+    <color name="burgundy_keyboard_bg">#1E0008</color>
+
+    <!-- Gray theme -->
+    <color name="gray_key">#424242</color>
+    <color name="gray_key_pressed">#616161</color>
+    <color name="gray_special_key">#2C2C2C</color>
+    <color name="gray_key_text">#F5F5F5</color>
+    <color name="gray_pred_bg">#4A4A4A</color>
+    <color name="gray_keyboard_bg">#1E1E1E</color>
+
+    <!-- Common -->
+    <color name="prediction_chip_bg">#33FFFFFF</color>
+    <color name="separator">#33FFFFFF</color>
+    <color name="shifted_indicator">#44BBBBFF</color>
+</resources>
